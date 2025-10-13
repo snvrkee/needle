@@ -1,0 +1,2 @@
+fun() -> say "arrow";(); // expect: "arrow"
+fun() { say "block"; }(); // expect: "block"

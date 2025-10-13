@@ -1,0 +1,12 @@
+var i;
+for i = 0; i < 3; i = i + 1 -> say i;
+// expect: 0
+// expect: 1
+// expect: 2
+
+for var i = 0; i < 3; i = i + 1 {
+    say i;
+}
+// expect: 0
+// expect: 1
+// expect: 2

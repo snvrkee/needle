@@ -1,0 +1,18 @@
+var i = 0;
+while i < 3 {
+    i = i + 1;
+    say i;
+}
+// expect: 1
+// expect: 2
+// expect: 3
+
+i = 0;
+var f = fun() {
+    i = i + 1;
+    say i;
+};
+while i < 3 -> f();
+// expect: 1
+// expect: 2
+// expect: 3

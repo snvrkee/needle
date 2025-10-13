@@ -1,0 +1,11 @@
+{}
+
+if false {}
+else {}
+
+while false {}
+
+do {}
+while false;
+
+fun() {};
