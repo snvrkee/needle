@@ -76,7 +76,7 @@ const (
 	DOT    TokenType = "."
 	WOW    TokenType = "!"
 
-	ARROW  TokenType = "->"
+	ARROW TokenType = "->"
 
 	OR  TokenType = "or"
 	AND TokenType = "and"
@@ -91,8 +91,8 @@ const (
 
 	FUN   TokenType = "fun"
 	CLASS TokenType = "class"
-	ARRAY TokenType = "array"
-	TABLE TokenType = "table"
+	VEC   TokenType = "vec"
+	MAP   TokenType = "map"
 
 	FOR     TokenType = "for"
 	WHILE   TokenType = "while"
@@ -111,6 +111,5 @@ const (
 	CONTINUE TokenType = "continue"
 
 	IMPORT TokenType = "import"
-
-	SAY TokenType = "say"
+	SAY    TokenType = "say"
 )

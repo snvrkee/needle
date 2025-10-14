@@ -1,2 +1,4 @@
-fun() -> say "arrow";(); // expect: "arrow"
-fun() { say "block"; }(); // expect: "block"
+fun() { say "anon"; }(); // expect: "anon"
+
+fun named() { say "named"; }
+named(); // expect: "named"

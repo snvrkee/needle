@@ -271,8 +271,8 @@ var indentifiers = map[string]token.TokenType{
 
 	"fun":   token.FUN,
 	"class": token.CLASS,
-	"array": token.ARRAY,
-	"table": token.TABLE,
+	"vec":   token.VEC,
+	"map":   token.MAP,
 
 	"null":  token.NULL,
 	"true":  token.BOOLEAN,

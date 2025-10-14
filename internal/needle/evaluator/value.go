@@ -22,8 +22,8 @@ const (
 	VAL_CLASS    ValueType = "class"
 	VAL_INSTANCE ValueType = "instance"
 
-	VAL_ARRAY     ValueType = "array"
-	VAL_TABLE     ValueType = "table"
+	VAL_VECTOR    ValueType = "vector"
+	VAL_MAP       ValueType = "map"
 	VAL_EXCEPTION ValueType = "exception"
 )
 
@@ -67,6 +67,7 @@ func (s *String) Say() string {
 }
 
 type Function struct {
+	Name    string
 	Params  []string
 	Body    ast.Stmt
 	Closure *Env
@@ -82,6 +83,7 @@ func (f *Function) Say() string {
 type NativeFunction = func(e *Evaluator, self0 Value, args ...Value) Value
 
 type Native struct {
+	Name     string
 	Arity    int
 	Function NativeFunction
 }
@@ -107,6 +109,7 @@ func (m *Method) Say() string {
 }
 
 type Class struct {
+	Name  string
 	Inits map[string]Value
 	Funs  map[string]Value
 }
@@ -149,22 +152,22 @@ func (e *Exception) Error() string {
 	)
 }
 
-type Array struct {
+type Vector struct {
 	Elems []Value
 }
 
-func (a *Array) Type() ValueType { return VAL_ARRAY }
-func (a *Array) Say() string {
-	return fmt.Sprintf("<array %p>", a)
+func (v *Vector) Type() ValueType { return VAL_VECTOR }
+func (v *Vector) Say() string {
+	return fmt.Sprintf("<vector %p>", v)
 }
 
-type Table struct {
+type Map struct {
 	Pairs *hashTable
 }
 
-func (t *Table) Type() ValueType { return VAL_TABLE }
-func (t *Table) Say() string {
-	return fmt.Sprintf("<table %p>", t)
+func (m *Map) Type() ValueType { return VAL_MAP }
+func (m *Map) Say() string {
+	return fmt.Sprintf("<map %p>", m)
 }
 
 /* == signal ================================================================ */

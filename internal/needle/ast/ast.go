@@ -78,13 +78,13 @@ func (vd *VarDecl) String() string {
 
 type FunDecl struct {
 	Name *Ident
-	Func *FunLit
+	Fun  *FunLit
 }
 
 func (fd *FunDecl) Node() {}
 func (fd *FunDecl) Decl() {}
 func (fd *FunDecl) String() string {
-	return "fun decl;"
+	return "<fun decl>"
 }
 
 type ClassDecl struct {
@@ -95,7 +95,7 @@ type ClassDecl struct {
 func (cd *ClassDecl) Node() {}
 func (cd *ClassDecl) Decl() {}
 func (cd *ClassDecl) String() string {
-	return "class decl;"
+	return "<class decl>"
 }
 
 /* == statements ============================================================ */
@@ -148,7 +148,7 @@ func (is *IfStmt) Node() {}
 func (is *IfStmt) Stmt() {}
 func (is *IfStmt) String() string {
 	return fmt.Sprintf(
-		"if %s -> %s else %s",
+		"if (%s) %s else %s",
 		is.Cond,
 		is.Then,
 		is.Else,
@@ -164,7 +164,7 @@ func (ws *WhileStmt) Node() {}
 func (ws *WhileStmt) Stmt() {}
 func (ws *WhileStmt) String() string {
 	return fmt.Sprintf(
-		"while %s -> %s",
+		"while (%s) %s",
 		ws.Cond,
 		ws.Do,
 	)
@@ -179,7 +179,7 @@ func (ds *DoStmt) Node() {}
 func (ds *DoStmt) Stmt() {}
 func (ds *DoStmt) String() string {
 	return fmt.Sprintf(
-		"do -> %s while %s;",
+		"do %s while (%s);",
 		ds.Do,
 		ds.While,
 	)
@@ -196,7 +196,7 @@ func (fs *ForStmt) Node() {}
 func (fs *ForStmt) Stmt() {}
 func (fs *ForStmt) String() string {
 	return fmt.Sprintf(
-		"for %s %s; %s -> %s",
+		"for (%s %s; %s) %s",
 		fs.Init,
 		fs.Cond,
 		fs.Post,
@@ -272,7 +272,7 @@ func (ts *TryStmt) Node() {}
 func (ts *TryStmt) Stmt() {}
 func (ts *TryStmt) String() string {
 	return fmt.Sprintf(
-		"try %s catch %s -> %s finally %s",
+		"try %s catch (%s) %s finally %s",
 		ts.Try,
 		ts.As,
 		ts.Catch,
@@ -503,18 +503,18 @@ func (fl *FunLit) String() string {
 	)
 }
 
-type ArrayLit struct {
+type VectorLit struct {
 	Elems []Expr
 }
 
-func (al *ArrayLit) Node() {}
-func (al *ArrayLit) Expr() {}
-func (al *ArrayLit) String() string {
+func (vl *VectorLit) Node() {}
+func (vl *VectorLit) Expr() {}
+func (vl *VectorLit) String() string {
 	var str strings.Builder
-	str.WriteString("array{")
-	for i, elem := range al.Elems {
+	str.WriteString("vec{")
+	for i, elem := range vl.Elems {
 		str.WriteString(elem.String())
-		if i != len(al.Elems)-1 {
+		if i != len(vl.Elems)-1 {
 			str.WriteString(", ")
 		}
 	}
@@ -522,21 +522,21 @@ func (al *ArrayLit) String() string {
 	return str.String()
 }
 
-type TableLit struct {
+type MapLit struct {
 	Pairs map[Expr]Expr
 }
 
-func (tl *TableLit) Node() {}
-func (tl *TableLit) Expr() {}
-func (tl *TableLit) String() string {
+func (ml *MapLit) Node() {}
+func (ml *MapLit) Expr() {}
+func (ml *MapLit) String() string {
 	var str strings.Builder
-	str.WriteString("table{")
+	str.WriteString("map{")
 	i := 0
-	for k, v := range tl.Pairs {
+	for k, v := range ml.Pairs {
 		str.WriteString(
 			fmt.Sprintf("%s: %s", k, v),
 		)
-		if i != len(tl.Pairs)-1 {
+		if i != len(ml.Pairs)-1 {
 			str.WriteString(", ")
 		}
 		i++

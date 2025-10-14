@@ -1,0 +1,10 @@
+var m = map{
+    1: "1",
+    1 + 1: "1 + " + "1",
+};
+say m[4 / 2]; // expect: "1 + 1"
+
+m["hi"] = "hello";
+say m["hi"]; // expect: "hello"
+
+say class_of(m) === Map; // expect: true

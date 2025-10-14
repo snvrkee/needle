@@ -1,8 +1,8 @@
 var i = 0;
-while (i < 3) {
+do {
     i = i + 1;
     say i;
-}
+} while (i < 3);
 // expect: 1
 // expect: 2
 // expect: 3
@@ -12,7 +12,8 @@ var f = fun() {
     i = i + 1;
     say i;
 };
-while (i < 3) f();
+do f();
+while (i < 3);
 // expect: 1
 // expect: 2
 // expect: 3

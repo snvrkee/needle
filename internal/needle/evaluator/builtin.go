@@ -26,10 +26,10 @@ func newBuiltins() map[string]*Native {
 					return e.globals.Classes[CLASS_NUMBER]
 				case *String:
 					return e.globals.Classes[CLASS_STRING]
-				case *Array:
-					return e.globals.Classes[CLASS_ARRAY]
-				case *Table:
-					return e.globals.Classes[CLASS_TABLE]
+				case *Vector:
+					return e.globals.Classes[CLASS_VECTOR]
+				case *Map:
+					return e.globals.Classes[CLASS_MAP]
 				case *Instance:
 					return obj.Class
 				}

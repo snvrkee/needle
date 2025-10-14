@@ -150,10 +150,10 @@ func (e *Evaluator) Eval(node ast.Node) Value {
 		return e.evalFunLit(node)
 	case *ast.ClassLit:
 		return e.evalClassLit(node)
-	case *ast.ArrayLit:
-		return e.evalArrayLit(node)
-	case *ast.TableLit:
-		return e.evalTableLit(node)
+	case *ast.VectorLit:
+		return e.evalVectorLit(node)
+	case *ast.MapLit:
+		return e.evalMapLit(node)
 	default:
 		panic(fmt.Sprintf("unknown node: %s", node.String()))
 	}
@@ -187,7 +187,8 @@ func (e *Evaluator) evalVarDecl(node *ast.VarDecl) Value {
 }
 
 func (e *Evaluator) evalFunDecl(node *ast.FunDecl) Value {
-	fun := e.evalFunLit(node.Func)
+	fun := e.evalFunLit(node.Fun)
+	fun.Name = node.Name.Name
 	if err := e.env.Declare(node.Name.Name, fun); err != nil {
 		e.panicException(err)
 	}
@@ -196,6 +197,7 @@ func (e *Evaluator) evalFunDecl(node *ast.FunDecl) Value {
 
 func (e *Evaluator) evalClassDecl(node *ast.ClassDecl) Value {
 	class := e.evalClassLit(node.Class)
+	class.Name = node.Name.Name
 	if err := e.env.Declare(node.Name.Name, class); err != nil {
 		e.panicException(err)
 	}
@@ -323,13 +325,13 @@ func (e *Evaluator) indexAssign(left *ast.IndexExpr, right Value) {
 	obj := e.Eval(left.Left)
 
 	switch obj := obj.(type) {
-	case *Array:
+	case *Vector:
 		idx, err := checkIndex(index, len(obj.Elems))
 		if err != nil {
 			e.panicException(err)
 		}
 		obj.Elems[idx] = right
-	case *Table:
+	case *Map:
 		_, err := obj.Pairs.Set(index, right)
 		if err != nil {
 			e.panicException(err)
@@ -481,10 +483,10 @@ func (e *Evaluator) evalPropExpr(node *ast.PropExpr) Value {
 		className = CLASS_STRING
 	case *Number:
 		className = CLASS_NUMBER
-	case *Array:
-		className = CLASS_ARRAY
-	case *Table:
-		className = CLASS_TABLE
+	case *Vector:
+		className = CLASS_VECTOR
+	case *Map:
+		className = CLASS_MAP
 	case *Exception:
 		className = CLASS_EXCEPTION
 	default:
@@ -503,13 +505,13 @@ func (e *Evaluator) evalIndexExpr(node *ast.IndexExpr) Value {
 	index := e.Eval(node.Index)
 
 	switch left := left.(type) {
-	case *Array:
+	case *Vector:
 		intIndex, err := checkIndex(index, len(left.Elems))
 		if err != nil {
 			e.panicException(err)
 		}
 		return left.Elems[intIndex]
-	case *Table:
+	case *Map:
 		val, err := left.Pairs.Get(index)
 		if err != nil {
 			e.panicException(err)
@@ -533,12 +535,12 @@ func (e *Evaluator) evalSliceExpr(node *ast.SliceExpr) Value {
 	end := e.Eval(node.End)
 
 	switch left := left.(type) {
-	case *Array:
+	case *Vector:
 		intStart, intEnd, err := checkSlice(start, end, len(left.Elems))
 		if err != nil {
 			e.panicException(err)
 		}
-		return &Array{Elems: slices.Clone(left.Elems[intStart:intEnd])}
+		return &Vector{Elems: slices.Clone(left.Elems[intStart:intEnd])}
 	case *String:
 		chars := []rune(left.Value)
 		intStart, intEnd, err := checkSlice(start, end, len(chars))
@@ -554,7 +556,7 @@ func (e *Evaluator) evalSliceExpr(node *ast.SliceExpr) Value {
 
 /* == eval literal ========================================================== */
 
-func (e *Evaluator) evalFunLit(node *ast.FunLit) Value {
+func (e *Evaluator) evalFunLit(node *ast.FunLit) *Function {
 	params, _ := pkg.SliceMap(
 		node.Params,
 		func(e *ast.Ident) (string, error) {
@@ -568,23 +570,23 @@ func (e *Evaluator) evalFunLit(node *ast.FunLit) Value {
 	}
 }
 
-func (e *Evaluator) evalArrayLit(node *ast.ArrayLit) Value {
-	arr := &Array{Elems: []Value{}}
+func (e *Evaluator) evalVectorLit(node *ast.VectorLit) *Vector {
+	vec := &Vector{Elems: []Value{}}
 	for _, expr := range node.Elems {
-		arr.Elems = append(arr.Elems, e.Eval(expr))
+		vec.Elems = append(vec.Elems, e.Eval(expr))
 	}
-	return arr
+	return vec
 }
 
-func (e *Evaluator) evalTableLit(node *ast.TableLit) Value {
-	table := &Table{Pairs: newHashTable()}
+func (e *Evaluator) evalMapLit(node *ast.MapLit) *Map {
+	m := &Map{Pairs: newHashTable()}
 	for kExpr, vExpr := range node.Pairs {
-		table.Pairs.Set(e.Eval(kExpr), e.Eval(vExpr))
+		m.Pairs.Set(e.Eval(kExpr), e.Eval(vExpr))
 	}
-	return table
+	return m
 }
 
-func (e *Evaluator) evalClassLit(node *ast.ClassLit) Value {
+func (e *Evaluator) evalClassLit(node *ast.ClassLit) *Class {
 	class := &Class{}
 	fmm := func(
 		ident *ast.Ident, lit *ast.FunLit,

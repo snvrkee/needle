@@ -1,4 +1,6 @@
-if true -> say "good"; // expect: "good"
-if false -> say "bad";
+if (true) say "then"; // expect: "then"
 
-if true { say "block"; } // expect: "block"
+if (false) say "bad";
+else say "else"; // expect: "else"
+
+if (true) { say "block"; } // expect: "block"

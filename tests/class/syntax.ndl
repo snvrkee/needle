@@ -1,0 +1,20 @@
+class Unit {
+    init new(name) {
+        self.name = name;
+    }
+    fun hello() {
+        say "My name is " + self.name + "!";
+    }
+}
+
+var kira = Unit.new("Kira");
+kira.hello(); // expect: "My name is Kira!"
+
+class{
+    init new(name) {
+        self.name = name;
+    }
+    fun hello() {
+        say "My name is " + self.name + "!";
+    }
+}.new("L").hello(); // expect: "My name is L!"

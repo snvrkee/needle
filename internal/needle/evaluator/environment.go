@@ -17,7 +17,7 @@ type Env struct {
 
 func newEnv(outer *Env) *Env {
 	return &Env{
-		store: make(map[string]Value, 8),
+		store: make(map[string]Value, 4),
 		outer: outer,
 		self:  nil,
 	}

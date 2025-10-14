@@ -1,0 +1,2 @@
+if (true) if (false) say "bad"; else say "good"; // expect: "good"
+if (false) if (true) say "bad"; else say "bad";

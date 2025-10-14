@@ -6,8 +6,8 @@ const (
 	CLASS_BOOLEAN   = "Boolean"
 	CLASS_NUMBER    = "Number"
 	CLASS_STRING    = "String"
-	CLASS_ARRAY     = "Array"
-	CLASS_TABLE     = "Table"
+	CLASS_VECTOR    = "Vector"
+	CLASS_MAP       = "Map"
 	CLASS_EXCEPTION = "Exception"
 )
 
@@ -86,12 +86,12 @@ func newStringClass() *Class {
 	return &Class{Inits: inits, Funs: funs}
 }
 
-func newArrayClass() *Class {
+func newVectorClass() *Class {
 	funs := map[string]Value{
 		"push": &Native{
 			Arity: 1,
 			Function: func(e *Evaluator, self0 Value, args ...Value) Value {
-				self := self0.(*Array)
+				self := self0.(*Vector)
 				self.Elems = append(self.Elems, args[0])
 				return e.globalNull()
 			},
@@ -99,7 +99,7 @@ func newArrayClass() *Class {
 		"pop": &Native{
 			Arity: 0,
 			Function: func(e *Evaluator, self0 Value, args ...Value) Value {
-				self := self0.(*Array)
+				self := self0.(*Vector)
 				elem := self.Elems[len(self.Elems)-1]
 				self.Elems = self.Elems[:len(self.Elems)-1]
 				return elem
@@ -108,7 +108,7 @@ func newArrayClass() *Class {
 		"length": &Native{
 			Arity: 0,
 			Function: func(e *Evaluator, self0 Value, args ...Value) Value {
-				self := self0.(*Array)
+				self := self0.(*Vector)
 				return &Number{Value: float64(len(self.Elems))}
 			},
 		},
@@ -117,27 +117,27 @@ func newArrayClass() *Class {
 	return &Class{Inits: inits, Funs: funs}
 }
 
-func newTableClass() *Class {
+func newMapClass() *Class {
 	funs := map[string]Value{
 		"size": &Native{
 			Arity: 0,
 			Function: func(e *Evaluator, self0 Value, args ...Value) Value {
-				self := self0.(*Table)
+				self := self0.(*Map)
 				return &Number{Value: float64(self.Pairs.Size())}
 			},
 		},
 		"keys": &Native{
 			Arity: 0,
 			Function: func(e *Evaluator, self0 Value, args ...Value) Value {
-				self := self0.(*Table)
-				return &Array{Elems: self.Pairs.Keys()}
+				self := self0.(*Map)
+				return &Vector{Elems: self.Pairs.Keys()}
 			},
 		},
 		"values": &Native{
 			Arity: 0,
 			Function: func(e *Evaluator, self0 Value, args ...Value) Value {
-				self := self0.(*Table)
-				return &Array{Elems: self.Pairs.Values()}
+				self := self0.(*Map)
+				return &Vector{Elems: self.Pairs.Values()}
 			},
 		},
 	}
@@ -164,8 +164,8 @@ func newBaseClasses() map[string]*Class {
 		CLASS_BOOLEAN:   newBooleanClass(),
 		CLASS_NUMBER:    newNumberClass(),
 		CLASS_STRING:    newStringClass(),
-		CLASS_ARRAY:     newArrayClass(),
-		CLASS_TABLE:     newTableClass(),
+		CLASS_VECTOR:    newVectorClass(),
+		CLASS_MAP:       newMapClass(),
 		CLASS_EXCEPTION: newExceptionClass(),
 	}
 }

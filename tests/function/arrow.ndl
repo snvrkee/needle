@@ -1,0 +1,4 @@
+say (fun() -> "anon")(); // expect: "anon"
+
+fun named() -> "named";
+say named(); // expect: "named"

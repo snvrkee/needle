@@ -53,12 +53,12 @@ func (p *Parser) declaration() ast.Decl {
 		return p.varDecl()
 	case token.FUN:
 		if p.peek().Type == token.IDENT {
-			return nil // TODO
+			return p.funDecl()
 		}
 		fallthrough
 	case token.CLASS:
 		if p.peek().Type == token.IDENT {
-			return nil // TODO
+			return p.classDecl()
 		}
 		fallthrough
 	default:
@@ -126,10 +126,10 @@ func (p *Parser) expression(prec precedence) ast.Expr {
 		expr = p.classLit()
 	case token.FUN:
 		expr = p.funLit()
-	case token.ARRAY:
-		expr = p.arrayLit()
-	case token.TABLE:
-		expr = p.tableLit()
+	case token.VEC:
+		expr = p.vectorLit()
+	case token.MAP:
+		expr = p.mapLit()
 
 	case token.NULL:
 		expr = &ast.NullLit{}
@@ -216,6 +216,22 @@ func (p *Parser) varDecl() *ast.VarDecl {
 	return nil
 }
 
+func (p *Parser) funDecl() *ast.FunDecl {
+	decl := &ast.FunDecl{}
+	p.expect(token.IDENT)
+	decl.Name = p.ident()
+	decl.Fun = p.funLit()
+	return decl
+}
+
+func (p *Parser) classDecl() *ast.ClassDecl {
+	decl := &ast.ClassDecl{}
+	p.expect(token.IDENT)
+	decl.Name = p.ident()
+	decl.Class = p.classLit()
+	return decl
+}
+
 /* == statements ============================================================ */
 
 func (p *Parser) block() *ast.Block {
@@ -245,22 +261,29 @@ func (p *Parser) block() *ast.Block {
 
 func (p *Parser) forStmt() *ast.ForStmt {
 	stmt := &ast.ForStmt{}
+	p.expect(token.L_PAREN)
 	p.advance()
 	stmt.Init = p.declaration()
 	p.advance()
-	stmt.Cond = p.expression(LOWEST)
-	p.expect(token.SEMI)
-	p.advance()
-	post := p.expression(LOWEST)
-	if p.peek().Type == token.ASSIGN {
-		p.advance()
-		p.advance()
-		stmt.Post = &ast.AssignStmt{Left: post, Right: p.expression(LOWEST)}
+	if p.check(token.SEMI) {
+		stmt.Cond = &ast.BooleanLit{Value: true}
 	} else {
-		stmt.Post = &ast.ExprStmt{Expr: post}
+		stmt.Cond = p.expression(LOWEST)
+		p.expect(token.SEMI)
 	}
-	if p.peek().Type != token.L_BRACE {
-		p.expect(token.ARROW)
+	p.advance()
+	if p.check(token.R_PAREN) {
+		stmt.Post = newNullStmt()
+	} else {
+		post := p.expression(LOWEST)
+		if p.peek().Type == token.ASSIGN {
+			p.advance()
+			p.advance()
+			stmt.Post = &ast.AssignStmt{Left: post, Right: p.expression(LOWEST)}
+		} else {
+			stmt.Post = &ast.ExprStmt{Expr: post}
+		}
+		p.expect(token.R_PAREN)
 	}
 	p.advance()
 	stmt.Repeat = p.statement()
@@ -269,11 +292,10 @@ func (p *Parser) forStmt() *ast.ForStmt {
 
 func (p *Parser) whileStmt() *ast.WhileStmt {
 	stmt := &ast.WhileStmt{}
+	p.expect(token.L_PAREN)
 	p.advance()
 	stmt.Cond = p.expression(LOWEST)
-	if p.peek().Type != token.L_BRACE {
-		p.expect(token.ARROW)
-	}
+	p.expect(token.R_PAREN)
 	p.advance()
 	stmt.Do = p.statement()
 	return stmt
@@ -284,19 +306,20 @@ func (p *Parser) doStmt() *ast.DoStmt {
 	p.advance()
 	stmt.Do = p.statement()
 	p.expect(token.WHILE)
+	p.expect(token.L_PAREN)
 	p.advance()
 	stmt.While = p.expression(LOWEST)
+	p.expect(token.R_PAREN)
 	p.expect(token.SEMI)
 	return stmt
 }
 
 func (p *Parser) ifStmt() *ast.IfStmt {
 	stmt := &ast.IfStmt{}
+	p.expect(token.L_PAREN)
 	p.advance()
 	stmt.Cond = p.expression(LOWEST)
-	if p.peek().Type != token.L_BRACE {
-		p.expect(token.ARROW)
-	}
+	p.expect(token.R_PAREN)
 	p.advance()
 	stmt.Then = p.statement()
 	if p.peek().Type == token.ELSE {
@@ -324,11 +347,10 @@ func (p *Parser) tryStmt() *ast.TryStmt {
 	stmt.Try = p.statement()
 	if p.peek().Type == token.CATCH {
 		p.advance()
+		p.expect(token.L_PAREN)
 		p.expect(token.IDENT)
 		stmt.As = p.ident()
-		if p.peek().Type != token.L_BRACE {
-			p.expect(token.ARROW)
-		}
+		p.expect(token.R_PAREN)
 		p.advance()
 		stmt.Catch = p.statement()
 		ended = true
@@ -428,23 +450,26 @@ func (p *Parser) funLit() *ast.FunLit {
 	lit.Params = p.parameters()
 	if p.peek().Type != token.L_BRACE {
 		p.expect(token.ARROW)
+		p.advance()
+		lit.Body = &ast.ReturnStmt{Value: p.expression(LOWEST)}
+	} else {
+		p.advance()
+		lit.Body = p.statement()
 	}
-	p.advance()
-	lit.Body = p.statement()
 	return lit
 }
 
-func (p *Parser) arrayLit() *ast.ArrayLit {
-	lit := &ast.ArrayLit{}
+func (p *Parser) vectorLit() *ast.VectorLit {
+	lit := &ast.VectorLit{}
 	p.expect(token.L_BRACE)
-	lit.Elems = p.arrayElements()
+	lit.Elems = p.vectorElements()
 	return lit
 }
 
-func (p *Parser) tableLit() *ast.TableLit {
-	lit := &ast.TableLit{}
+func (p *Parser) mapLit() *ast.MapLit {
+	lit := &ast.MapLit{}
 	p.expect(token.L_BRACE)
-	lit.Pairs = p.tablePairs()
+	lit.Pairs = p.mapPairs()
 	return lit
 }
 
@@ -493,7 +518,7 @@ func (p *Parser) indexOrSliceExpr(left ast.Expr) ast.Expr {
 
 /* == parse utility ========================================================= */
 
-func (p *Parser) tablePairs() map[ast.Expr]ast.Expr {
+func (p *Parser) mapPairs() map[ast.Expr]ast.Expr {
 	pairs := map[ast.Expr]ast.Expr{}
 	if p.peek().Type == token.R_BRACE {
 		p.advance()
@@ -524,7 +549,7 @@ func (p *Parser) tablePairs() map[ast.Expr]ast.Expr {
 	return pairs
 }
 
-func (p *Parser) arrayElements() []ast.Expr {
+func (p *Parser) vectorElements() []ast.Expr {
 	elems := []ast.Expr{}
 	p.advance()
 	if p.check(token.R_BRACE) {

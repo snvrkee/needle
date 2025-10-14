@@ -1,0 +1,7 @@
+for (var i = 0;; i = i + 1) {
+    if (i < 3) say i;
+    else break;
+}
+// expect: 0
+// expect: 1
+// expect: 2
