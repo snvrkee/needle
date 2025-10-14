@@ -139,16 +139,10 @@ func (e *Exception) Say() string {
 	return fmt.Sprintf("<exception %p>", e)
 }
 func (e *Exception) Error() string {
-	var trace strings.Builder
-	for _, fun := range e.StackTrace {
-		trace.WriteString("\t")
-		trace.WriteString(fun.Say())
-		trace.WriteString("\n")
-	}
 	return fmt.Sprintf(
-		"%s\n%s",
+		"Exception: %s\n%s",
 		e.Message,
-		trace.String(),
+		sprintTrace(e.StackTrace),
 	)
 }
 
@@ -183,6 +177,32 @@ const (
 type Signal struct {
 	Type  SignalType
 	Value Value
+}
+
+/* == utils ================================================================= */
+
+func sprintTrace(trace []Value) string {
+	var str strings.Builder
+	for _, fun := range trace {
+		str.WriteString("\t")
+		str.WriteString("in ")
+		name := "anonymous function"
+		switch fun := fun.(type) {
+		case *Function:
+			if fun.Name != "" {
+				name = fun.Name
+			}
+		case *Native:
+			if fun.Name != "" {
+				name = fun.Name
+			}
+		default:
+			panic("not a function in stack trace")
+		}
+		str.WriteString(name)
+		str.WriteString("\n")
+	}
+	return str.String()
 }
 
 /* == hash table ============================================================ */
