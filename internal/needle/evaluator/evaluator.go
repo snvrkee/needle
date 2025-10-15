@@ -4,8 +4,12 @@ import (
 	"errors"
 	"fmt"
 	"needle/internal/needle/ast"
+	"needle/internal/needle/parser"
+	"needle/internal/needle/scanner"
 	"needle/internal/needle/token"
 	"needle/internal/pkg"
+	"os"
+	"path/filepath"
 	"slices"
 )
 
@@ -17,20 +21,29 @@ type globals struct {
 }
 
 type Evaluator struct {
+	mods      map[string]*Module
+	wd        string
+	roof      *Env
 	env       *Env
 	callStack *pkg.Stack[Value]
 	globals   *globals
 }
 
 func New() *Evaluator {
-	env := newEnv(nil)
-	loadBuiltins(env)
+	roof := newEnv(nil)
+	loadBuiltins(roof)
 	classes := newBaseClasses()
 	for name, class := range classes {
-		env.Declare(name, class)
+		roof.Declare(name, class)
 	}
+	work := newEnv(roof)
+	wd, _ := os.Getwd()
+	mods := newBaseModules()
 	return &Evaluator{
-		env:       env,
+		mods:      mods,
+		wd:        wd,
+		roof:      roof,
+		env:       work,
 		callStack: pkg.NewStack[Value](),
 		globals: &globals{
 			Null:    &Null{},
@@ -39,6 +52,10 @@ func New() *Evaluator {
 			Classes: classes,
 		},
 	}
+}
+
+func (e *Evaluator) SetWorkDir(wd string) {
+	e.wd = wd
 }
 
 func (e *Evaluator) EvalScript(script *ast.Script) (err error) {
@@ -88,6 +105,8 @@ func (e *Evaluator) Eval(node ast.Node) Value {
 		return e.evalClassDecl(node)
 	case *ast.StmtDecl:
 		return e.Eval(node.Stmt)
+	case *ast.ImportDecl:
+		return e.evalImportDecl(node)
 
 	case *ast.SayStmt:
 		return e.evalSayStmt(node)
@@ -164,7 +183,7 @@ func (e *Evaluator) evalScript(node *ast.Script) Value {
 	for _, decl := range node.Decls {
 		e.Eval(decl)
 	}
-	return e.globalNull()
+	return nil
 }
 
 func (e *Evaluator) evalBlock(node *ast.Block) Value {
@@ -174,7 +193,7 @@ func (e *Evaluator) evalBlock(node *ast.Block) Value {
 	for _, decl := range node.Decls {
 		e.Eval(decl)
 	}
-	return e.globalNull()
+	return nil
 }
 
 /* == eval daclaration ====================================================== */
@@ -183,7 +202,7 @@ func (e *Evaluator) evalVarDecl(node *ast.VarDecl) Value {
 	if err := e.env.Declare(node.Name.Name, e.Eval(node.Right)); err != nil {
 		e.panicException(err)
 	}
-	return e.globalNull()
+	return nil
 }
 
 func (e *Evaluator) evalFunDecl(node *ast.FunDecl) Value {
@@ -192,7 +211,7 @@ func (e *Evaluator) evalFunDecl(node *ast.FunDecl) Value {
 	if err := e.env.Declare(node.Name.Name, fun); err != nil {
 		e.panicException(err)
 	}
-	return e.globalNull()
+	return nil
 }
 
 func (e *Evaluator) evalClassDecl(node *ast.ClassDecl) Value {
@@ -201,25 +220,56 @@ func (e *Evaluator) evalClassDecl(node *ast.ClassDecl) Value {
 	if err := e.env.Declare(node.Name.Name, class); err != nil {
 		e.panicException(err)
 	}
-	return e.globalNull()
+	return nil
+}
+
+func (e *Evaluator) evalImportDecl(node *ast.ImportDecl) Value {
+	var mod *Module
+	if pkg.IsAlphaString(node.Path.Value) {
+		if m, ok := e.mods[node.Path.Value]; ok {
+			mod = m
+		} else {
+			e.panicException("module doesn't exists")
+		}
+	} else {
+		modPath := absPath(e.wd, node.Path.Value)
+		if m, ok := e.mods[modPath]; ok {
+			e.env.Declare(node.Alias.Name, m)
+			mod = m
+		} else {
+			mod = &Module{
+				Store: e.runImport(modPath).store,
+			}
+			e.mods[modPath] = mod
+		}
+	}
+	if node.Unwrap {
+		for name, val := range mod.Store {
+			e.env.Declare(name, val)
+		}
+	} else {
+		e.env.Declare(node.Alias.Name, mod)
+	}
+	return nil
 }
 
 /* == eval statement ======================================================== */
 
 func (e *Evaluator) evalSayStmt(node *ast.SayStmt) Value {
 	fmt.Println(e.Eval(node.Expr).Say())
-	return e.globalNull()
+	return nil
 }
 
 func (e *Evaluator) evalIfStmt(node *ast.IfStmt) Value {
 	if toBoolean(e.Eval(node.Cond)) {
-		return e.Eval(node.Then)
+		e.Eval(node.Then)
+	} else {
+		e.Eval(node.Else)
 	}
-	return e.Eval(node.Else)
+	return nil
 }
 
-func (e *Evaluator) evalForStmt(node *ast.ForStmt) (value Value) {
-	value = e.globalNull()
+func (e *Evaluator) evalForStmt(node *ast.ForStmt) Value {
 	oldEnv := e.env
 	e.env = newEnv(oldEnv)
 	defer func() { e.env = oldEnv }()
@@ -231,49 +281,40 @@ func (e *Evaluator) evalForStmt(node *ast.ForStmt) (value Value) {
 		e.Eval(node.Post)
 		cond = e.Eval(node.Cond)
 	}
-	return
+	return nil
 }
 
-func (e *Evaluator) evalWhileStmt(node *ast.WhileStmt) (value Value) {
+func (e *Evaluator) evalWhileStmt(node *ast.WhileStmt) Value {
 	cond := e.Eval(node.Cond)
-	value = e.globalNull()
 	defer catchBreak()
 	for toBoolean(cond) {
 		e.runLoop(node.Do)
 		cond = e.Eval(node.Cond)
 	}
-	return
+	return nil
 }
 
-func (e *Evaluator) evalDoStmt(node *ast.DoStmt) (value Value) {
+func (e *Evaluator) evalDoStmt(node *ast.DoStmt) Value {
 	var cond Value = e.globalBoolean(true)
-	value = e.globalNull()
 	defer catchBreak()
 	for toBoolean(cond) {
 		e.runLoop(node.Do)
 		cond = e.Eval(node.While)
 	}
-	return
+	return nil
 }
 
 func (e *Evaluator) evalTryStmt(node *ast.TryStmt) Value {
-	value, excTry := pkg.Catch[ast.Node, Value, *Exception](e.Eval, node.Try)
-	var excCatch *Exception
+	defer func() { e.Eval(node.Finally) }()
+	_, excTry := pkg.Catch[ast.Node, Value, *Exception](e.Eval, node.Try)
 	if excTry != nil {
 		oldEnv := e.env
 		e.env = newEnv(oldEnv)
 		defer func() { e.env = oldEnv }()
 		e.env.Declare(node.As.Name, excTry)
-		_, excCatch = pkg.Catch[ast.Node, Value, *Exception](e.Eval, node.Catch)
+		e.Eval(node.Catch)
 	}
-	_, excFin := pkg.Catch[ast.Node, Value, *Exception](e.Eval, node.Finally)
-
-	if excFin != nil {
-		panic(excFin)
-	} else if excCatch != nil {
-		panic(excCatch)
-	}
-	return value
+	return nil
 }
 
 func (e *Evaluator) evalThrowStmt(node *ast.ThrowStmt) Value {
@@ -296,7 +337,7 @@ func (e *Evaluator) evalAssignStmt(node *ast.AssignStmt) Value {
 	default:
 		e.panicException("can't assign to")
 	}
-	return e.globalNull()
+	return nil
 }
 
 func (e *Evaluator) propAssign(left *ast.PropExpr, right Value) {
@@ -479,6 +520,12 @@ func (e *Evaluator) evalPropExpr(node *ast.PropExpr) Value {
 			}
 		}
 		e.panicException("missing property")
+	case *Module:
+		val, ok := left.Store[prop]
+		if !ok {
+			e.panicException("missing property")
+		}
+		return val
 	case *String:
 		className = CLASS_STRING
 	case *Number:
@@ -678,6 +725,35 @@ func (e *Evaluator) runCall(
 	}
 }
 
+func (e *Evaluator) runImport(absPath string) *Env {
+	script := e.compileFile(absPath)
+
+	oldEnv := e.env
+	e.env = newEnv(e.roof)
+	defer func() { e.env = oldEnv }()
+	oldWd := e.wd
+	e.wd = filepath.Dir(absPath)
+	defer func() { e.wd = oldWd }()
+
+	e.Eval(script)
+	modEnv := e.env
+	return modEnv
+}
+
+func (e *Evaluator) compileFile(path string) *ast.Script {
+	bytes, _ := os.ReadFile(path)
+	s := scanner.New([]rune(string(bytes)))
+	script, errs := parser.New(s).Parse()
+	if errs != nil {
+		var msg string
+		for _, err := range errs {
+			msg += fmt.Sprintln("compile error: ", err)
+		}
+		e.panicException(msg)
+	}
+	return script
+}
+
 func catchReturn(value *Value) {
 	if r := recover(); r != nil {
 		if s, ok := r.(*Signal); ok {
@@ -709,6 +785,14 @@ func catchContinue() {
 			}
 		}
 		panic(r)
+	}
+}
+
+func absPath(base string, path string) string {
+	if filepath.IsAbs(path) {
+		return path
+	} else {
+		return filepath.Join(base, path)
 	}
 }
 

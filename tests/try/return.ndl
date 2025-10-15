@@ -1,0 +1,11 @@
+fun test() {
+    try {
+        throw 0;
+    } catch(_) {
+        return 1;
+    } finally {
+        return 2;
+    }
+}
+
+say test(); // expect: 2

@@ -1,0 +1,9 @@
+import mod "./mod.ndl";
+
+say mod.mod.inc(); // expect: 2
+say mod.mod.inc(); // expect: 3
+say mod.mod.inc(); // expect: 4
+
+import mod0 "./mod0.ndl";
+say mod0 === mod.mod; // expect: true
+say mod0.inc(); // expect: 5

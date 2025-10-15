@@ -6,6 +6,8 @@ import (
 	"needle/internal/needle/parser"
 	"needle/internal/needle/scanner"
 	"needle/internal/needle/token"
+	"os"
+	"path/filepath"
 	"time"
 )
 
@@ -23,13 +25,29 @@ func (n *Needle) Run(source []rune) error {
 	s := scanner.New(source)
 	script, errs := parser.New(s).Parse()
 	if errs != nil {
-		return errs[0] //TODO
+		for _, err := range errs {
+			fmt.Println("compile error: ", err)
+		}
+		return errs[0]
 	}
 	return n.ev.EvalScript(script)
 }
 
-func (n *Needle) Run_debug(source []rune) error {
-	s := scanner.New(source)
+func (n *Needle) RunFile(path string) error {
+	abs, _ := filepath.Abs(path)
+	dir := filepath.Dir(abs)
+	n.ev.SetWorkDir(dir)
+	return n.Run(readFile(path))
+}
+
+func (n *Needle) RunFile_debug(path string) error {
+	abs, _ := filepath.Abs(path)
+	dir := filepath.Dir(abs)
+	n.ev.SetWorkDir(dir)
+	fmt.Println("[file path] ->", abs)
+	fmt.Println("[work dir] ->", dir)
+
+	s := scanner.New(readFile(path))
 
 	fmt.Println("== tokens ==")
 	tokens := collectTokens(s)
@@ -54,9 +72,9 @@ func (n *Needle) Run_debug(source []rune) error {
 	fmt.Println("== runtime ==")
 	err := n.ev.EvalScript(script)
 
-	fmt.Println("== time ==")
-	fmt.Printf("program end in %v\n", time.Since(start))
-	
+	fmt.Println("== result ==")
+	fmt.Printf("program ends in %v\n", time.Since(start))
+
 	return err
 }
 
@@ -70,4 +88,9 @@ func collectTokens(tkz parser.Tokenizer) []*token.Token {
 		}
 	}
 	return tks
+}
+
+func readFile(path string) []rune {
+	b, _ := os.ReadFile(path)
+	return []rune(string(b))
 }

@@ -1,2 +1,3 @@
 *.ndl
 !tests/**/*
+bin/*

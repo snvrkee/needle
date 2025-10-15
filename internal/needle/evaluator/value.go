@@ -6,6 +6,8 @@ import (
 	"needle/internal/needle/ast"
 	"strconv"
 	"strings"
+
+	"github.com/fatih/color"
 )
 
 type ValueType string
@@ -21,6 +23,7 @@ const (
 	VAL_METHOD   ValueType = "method"
 	VAL_CLASS    ValueType = "class"
 	VAL_INSTANCE ValueType = "instance"
+	VAL_MODULE   ValueType = "module"
 
 	VAL_VECTOR    ValueType = "vector"
 	VAL_MAP       ValueType = "map"
@@ -33,38 +36,9 @@ type Value interface {
 }
 
 type Null struct{}
-
-func (n *Null) Type() ValueType { return VAL_NULL }
-func (n *Null) Say() string     { return "null" }
-
-type Boolean struct {
-	Value bool
-}
-
-func (b *Boolean) Type() ValueType { return VAL_BOOLEAN }
-func (b *Boolean) Say() string {
-	return strconv.FormatBool(b.Value)
-}
-
-type Number struct {
-	Value float64
-}
-
-func (n *Number) Type() ValueType {
-	return VAL_NUMBER
-}
-func (n *Number) Say() string {
-	return strconv.FormatFloat(n.Value, 'g', -1, 64)
-}
-
-type String struct {
-	Value string
-}
-
-func (s *String) Type() ValueType { return VAL_STRING }
-func (s *String) Say() string {
-	return fmt.Sprintf("\"%s\"", s.Value)
-}
+type Boolean struct{ Value bool }
+type Number struct{ Value float64 }
+type String struct{ Value string }
 
 type Function struct {
 	Name    string
@@ -73,26 +47,11 @@ type Function struct {
 	Closure *Env
 }
 
-func (f *Function) Type() ValueType {
-	return VAL_FUNCTION
-}
-func (f *Function) Say() string {
-	return fmt.Sprintf("<function %p>", f)
-}
-
 type NativeFunction = func(e *Evaluator, self0 Value, args ...Value) Value
-
 type Native struct {
 	Name     string
 	Arity    int
 	Function NativeFunction
-}
-
-func (n *Native) Type() ValueType {
-	return VAL_NATIVE
-}
-func (n *Native) Say() string {
-	return fmt.Sprintf("<function %p>", n)
 }
 
 type Method struct {
@@ -101,11 +60,8 @@ type Method struct {
 	IsInit   bool
 }
 
-func (m *Method) Type() ValueType {
-	return VAL_METHOD
-}
-func (m *Method) Say() string {
-	return fmt.Sprintf("<function %p>", m)
+type Module struct {
+	Store map[string]Value
 }
 
 type Class struct {
@@ -114,19 +70,9 @@ type Class struct {
 	Funs  map[string]Value
 }
 
-func (c *Class) Type() ValueType { return VAL_CLASS }
-func (c *Class) Say() string {
-	return fmt.Sprintf("<class %p>", c)
-}
-
 type Instance struct {
 	Class  *Class
 	Fields map[string]Value
-}
-
-func (i *Instance) Type() ValueType { return VAL_INSTANCE }
-func (i *Instance) Say() string {
-	return fmt.Sprintf("<instance %p of class %p>", i, i.Class)
 }
 
 type Exception struct {
@@ -134,10 +80,6 @@ type Exception struct {
 	StackTrace []Value
 }
 
-func (e *Exception) Type() ValueType { return VAL_EXCEPTION }
-func (e *Exception) Say() string {
-	return fmt.Sprintf("<exception %p>", e)
-}
 func (e *Exception) Error() string {
 	return fmt.Sprintf(
 		"Exception: %s\n%s",
@@ -146,20 +88,63 @@ func (e *Exception) Error() string {
 	)
 }
 
-type Vector struct {
-	Elems []Value
-}
+type Vector struct{ Elems []Value }
+type Map struct{ Pairs *hashTable }
 
-func (v *Vector) Type() ValueType { return VAL_VECTOR }
+/* == type ================================================================== */
+
+func (n *Null) Type() ValueType      { return VAL_NULL }
+func (b *Boolean) Type() ValueType   { return VAL_BOOLEAN }
+func (n *Number) Type() ValueType    { return VAL_NUMBER }
+func (s *String) Type() ValueType    { return VAL_STRING }
+func (f *Function) Type() ValueType  { return VAL_FUNCTION }
+func (n *Native) Type() ValueType    { return VAL_NATIVE }
+func (m *Method) Type() ValueType    { return VAL_METHOD }
+func (m *Module) Type() ValueType    { return VAL_MODULE }
+func (c *Class) Type() ValueType     { return VAL_CLASS }
+func (i *Instance) Type() ValueType  { return VAL_INSTANCE }
+func (e *Exception) Type() ValueType { return VAL_EXCEPTION }
+func (v *Vector) Type() ValueType    { return VAL_VECTOR }
+func (m *Map) Type() ValueType       { return VAL_MAP }
+
+/* == say =================================================================== */
+
+func (n *Null) Say() string {
+	return color.MagentaString("null")
+}
+func (b *Boolean) Say() string {
+	return strconv.FormatBool(b.Value)
+}
+func (n *Number) Say() string {
+	return strconv.FormatFloat(n.Value, 'g', -1, 64)
+}
+func (s *String) Say() string {
+	return fmt.Sprintf("\"%s\"", s.Value)
+}
+func (f *Function) Say() string {
+	return fmt.Sprintf("<function %s %p>", anon(f.Name), f)
+}
+func (m *Module) Say() string {
+	return fmt.Sprintf("<module %p>", m)
+}
+func (c *Class) Say() string {
+	return fmt.Sprintf("<class %s %p>", anon(c.Name), c)
+}
+func (n *Native) Say() string {
+	return fmt.Sprintf("<function %s %p>", anon(n.Name), n)
+}
+func (m *Method) Say() string {
+	return fmt.Sprintf("<method %s of %s>", m.Function.Say(), m.Self.Say())
+}
+func (i *Instance) Say() string {
+	return fmt.Sprintf("<instance %p of %s>", i, i.Class.Say())
+}
+func (e *Exception) Say() string {
+	return fmt.Sprintf("<exception \"%s\" %p>", e.Message, e)
+}
 func (v *Vector) Say() string {
 	return fmt.Sprintf("<vector %p>", v)
 }
-
-type Map struct {
-	Pairs *hashTable
-}
-
-func (m *Map) Type() ValueType { return VAL_MAP }
 func (m *Map) Say() string {
 	return fmt.Sprintf("<map %p>", m)
 }
@@ -181,26 +166,17 @@ type Signal struct {
 
 /* == utils ================================================================= */
 
+func anon(n string) string {
+	if n != "" {
+		return "'" + n + "'"
+	}
+	return "(anonymous)"
+}
+
 func sprintTrace(trace []Value) string {
 	var str strings.Builder
 	for _, fun := range trace {
-		str.WriteString("\t")
-		str.WriteString("in ")
-		name := "anonymous function"
-		switch fun := fun.(type) {
-		case *Function:
-			if fun.Name != "" {
-				name = fun.Name
-			}
-		case *Native:
-			if fun.Name != "" {
-				name = fun.Name
-			}
-		default:
-			panic("not a function in stack trace")
-		}
-		str.WriteString(name)
-		str.WriteString("\n")
+		str.WriteString(fmt.Sprintf("\tin %s\n", fun.Say()))
 	}
 	return str.String()
 }

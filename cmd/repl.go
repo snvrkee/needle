@@ -5,12 +5,14 @@ import (
 	"fmt"
 	"needle/internal/needle"
 	"os"
+
+	"github.com/fatih/color"
 )
 
 func RunRepl() error {
 	state := needle.New()
-	fmt.Println("Needle ver0.0.0")
-	fmt.Println("exit using ctrl+c")
+	fmt.Println(color.CyanString("Needle"), "[ver0.0.0]")
+	fmt.Println("exit using", color.RedString("ctrl+c"))
 	for {
 		fmt.Print("> ")
 		r := bufio.NewReader(os.Stdin)

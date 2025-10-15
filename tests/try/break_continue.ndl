@@ -1,0 +1,21 @@
+for (i := 0; i < 3; i += 1) {
+    say i;
+    try {
+        if (i > 0) {
+            break;
+        }
+    } finally {
+        continue;
+    }
+}
+// expect: 0
+// expect: 1
+// expect: 2
+
+for (i := 0; i < 3; i += 1) {
+    say i;
+    try continue;
+    finally if (i > 0) break;
+}
+// expect: 0
+// expect: 1

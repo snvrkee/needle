@@ -1,0 +1,16 @@
+var a;
+
+a = 1;
+say a; // expect: 1
+
+a += a;
+say a; // expect: 2
+
+a -= a - 1;
+say a; // expect: 1
+
+a *= 5;
+say a; // expect: 5
+
+a /= 2;
+say a; // expect: 2.5

@@ -1,0 +1,7 @@
+var cnt = 0;
+
+fun inc() {
+    var _cnt = cnt;
+    cnt = cnt + 1;
+    return _cnt; 
+}

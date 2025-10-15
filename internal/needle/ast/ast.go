@@ -98,6 +98,18 @@ func (cd *ClassDecl) String() string {
 	return "<class decl>"
 }
 
+type ImportDecl struct {
+	Path   *StringLit
+	Unwrap bool
+	Alias  *Ident
+}
+
+func (id *ImportDecl) Node() {}
+func (id *ImportDecl) Decl() {}
+func (id *ImportDecl) String() string {
+	return fmt.Sprintf("import %s %s;", id.Alias, id.Path)
+}
+
 /* == statements ============================================================ */
 
 type BadStmt struct{}

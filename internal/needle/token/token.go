@@ -52,6 +52,11 @@ const (
 	STAR  TokenType = "*"
 	SLASH TokenType = "/"
 
+	PLUS_ASSIGN  TokenType = "+="
+	MINUS_ASSIGN TokenType = "-="
+	STAR_ASSIGN  TokenType = "*="
+	SLASH_ASSIGN TokenType = "/="
+
 	LT   TokenType = "<"
 	LE   TokenType = "<="
 	GT   TokenType = ">"
@@ -73,6 +78,7 @@ const (
 	QUEST  TokenType = "?"
 	COMMA  TokenType = ","
 	ASSIGN TokenType = "="
+	DEF    TokenType = ":="
 	DOT    TokenType = "."
 	WOW    TokenType = "!"
 

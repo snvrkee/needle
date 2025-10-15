@@ -11,12 +11,14 @@ func loadBuiltins(env *Env) {
 func newBuiltins() map[string]*Native {
 	return map[string]*Native{
 		"clock": {
+			Name:  "clock",
 			Arity: 0,
 			Function: func(e *Evaluator, self Value, args ...Value) Value {
 				return &Number{Value: float64(time.Now().Unix())}
 			},
 		},
 		"class_of": {
+			Name:  "class_of",
 			Arity: 1,
 			Function: func(e *Evaluator, self Value, args ...Value) Value {
 				switch obj := args[0].(type) {

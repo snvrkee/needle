@@ -1,0 +1,17 @@
+fun error() {
+    throw 1;
+}
+
+try {
+    error();
+} catch (_) {
+    say "catch"; // expect: "catch"
+} finally {
+    say "fin"; // expect: "fin"
+}
+
+try error();
+catch (_) say "catch"; // expect: "catch"
+
+try error();
+finally say "fin"; // expect: "fin"

@@ -261,6 +261,12 @@ var dual = map[string]token.TokenType{
 	">=": token.GE,
 
 	"->": token.ARROW,
+	":=": token.DEF,
+
+	"+=": token.PLUS_ASSIGN,
+	"-=": token.MINUS_ASSIGN,
+	"*=": token.STAR_ASSIGN,
+	"/=": token.SLASH_ASSIGN,
 }
 
 var indentifiers = map[string]token.TokenType{

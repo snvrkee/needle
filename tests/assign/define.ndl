@@ -1,0 +1,8 @@
+var a;
+say a; // expect: null
+
+var b = "init";
+say b; // expect: "init"
+
+c := "def";
+say c; // expect: "def"

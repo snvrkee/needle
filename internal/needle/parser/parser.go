@@ -51,20 +51,23 @@ func (p *Parser) declaration() ast.Decl {
 	switch p.current.Type {
 	case token.VAR:
 		return p.varDecl()
+	case token.IDENT:
+		if p.peek().Type == token.DEF {
+			return p.defDecl()
+		}
+	case token.IMPORT:
+		return p.importDecl()
 	case token.FUN:
 		if p.peek().Type == token.IDENT {
 			return p.funDecl()
 		}
-		fallthrough
 	case token.CLASS:
 		if p.peek().Type == token.IDENT {
 			return p.classDecl()
 		}
-		fallthrough
-	default:
-		return &ast.StmtDecl{
-			Stmt: p.statement(),
-		}
+	}
+	return &ast.StmtDecl{
+		Stmt: p.statement(),
 	}
 }
 
@@ -99,9 +102,9 @@ func (p *Parser) statement() ast.Stmt {
 	}
 
 	expr := p.expression(LOWEST)
-	if p.peek().Type == token.ASSIGN {
+	if isAssign(p.peek().Type) {
 		p.advance()
-		return p.assignStmt(expr)
+		return p.assignStmt(expr, true)
 	}
 
 	p.expect(token.SEMI)
@@ -216,6 +219,33 @@ func (p *Parser) varDecl() *ast.VarDecl {
 	return nil
 }
 
+func (p *Parser) defDecl() *ast.VarDecl {
+	decl := &ast.VarDecl{}
+	decl.Name = p.ident()
+	p.expect(token.DEF)
+	p.advance()
+	decl.Right = p.expression(LOWEST)
+	p.expect(token.SEMI)
+	return decl
+}
+
+func (p *Parser) importDecl() *ast.ImportDecl {
+	decl := &ast.ImportDecl{}
+	if p.peek().Type == token.DOT {
+		p.advance()
+		decl.Alias = &ast.Ident{Name: "."}
+		decl.Unwrap = true
+	} else {
+		p.expect(token.IDENT)
+		decl.Alias = p.ident()
+		decl.Unwrap = false
+	}
+	p.expect(token.STRING)
+	decl.Path = &ast.StringLit{Value: p.current.Literal}
+	p.expect(token.SEMI)
+	return decl
+}
+
 func (p *Parser) funDecl() *ast.FunDecl {
 	decl := &ast.FunDecl{}
 	p.expect(token.IDENT)
@@ -276,10 +306,9 @@ func (p *Parser) forStmt() *ast.ForStmt {
 		stmt.Post = newNullStmt()
 	} else {
 		post := p.expression(LOWEST)
-		if p.peek().Type == token.ASSIGN {
+		if isAssign(p.peek().Type) {
 			p.advance()
-			p.advance()
-			stmt.Post = &ast.AssignStmt{Left: post, Right: p.expression(LOWEST)}
+			stmt.Post = p.assignStmt(post, false)
 		} else {
 			stmt.Post = &ast.ExprStmt{Expr: post}
 		}
@@ -395,11 +424,23 @@ func (p *Parser) returnStmt() *ast.ReturnStmt {
 	return stmt
 }
 
-func (p *Parser) assignStmt(left ast.Expr) *ast.AssignStmt {
+func (p *Parser) assignStmt(left ast.Expr, semiEnd bool) *ast.AssignStmt {
 	stmt := &ast.AssignStmt{Left: left}
-	p.advance()
-	stmt.Right = p.expression(LOWEST)
-	p.expect(token.SEMI)
+	if p.check(token.ASSIGN) {
+		p.advance()
+		stmt.Right = p.expression(LOWEST)
+	} else {
+		op := convertToken(p.current)
+		p.advance()
+		stmt.Right = &ast.InfixExpr{
+			Left:  left,
+			Op:    op,
+			Right: p.expression(LOWEST),
+		}
+	}
+	if semiEnd {
+		p.expect(token.SEMI)
+	}
 	return stmt
 }
 
@@ -640,6 +681,41 @@ func (p *Parser) parameters() []*ast.Ident {
 
 /* == utility =============================================================== */
 
+func isAssign(t token.TokenType) bool {
+	return t == token.ASSIGN ||
+		t == token.PLUS_ASSIGN ||
+		t == token.MINUS_ASSIGN ||
+		t == token.STAR_ASSIGN ||
+		t == token.SLASH_ASSIGN
+}
+
+func convertToken(tk *token.Token) *token.Token {
+	switch tk.Type {
+	case token.PLUS_ASSIGN:
+		return token.NewToken(token.PLUS, "+",
+			tk.Position.Line,
+			tk.Position.Column,
+		)
+	case token.MINUS_ASSIGN:
+		return token.NewToken(token.MINUS, "-",
+			tk.Position.Line,
+			tk.Position.Column,
+		)
+	case token.STAR_ASSIGN:
+		return token.NewToken(token.STAR, "*",
+			tk.Position.Line,
+			tk.Position.Column,
+		)
+	case token.SLASH_ASSIGN:
+		return token.NewToken(token.SLASH, "/",
+			tk.Position.Line,
+			tk.Position.Column,
+		)
+	default:
+		panic("unconvertable token")
+	}
+}
+
 func (p *Parser) currentPrecedence() precedence {
 	return precedences[p.current.Type]
 }
@@ -680,14 +756,6 @@ func (p *Parser) synchronize() {
 func (p *Parser) expect(t token.TokenType) {
 	p.advance()
 	if t == p.current.Type {
-		return
-	}
-	panicParseError(p.current, "expected '%s'", t)
-}
-
-func (p *Parser) consume(t token.TokenType) {
-	if t == p.current.Type {
-		p.advance()
 		return
 	}
 	panicParseError(p.current, "expected '%s'", t)
@@ -782,10 +850,6 @@ func newNullExpr() ast.Expr {
 
 func newBadDecl() *ast.BadDecl {
 	return &ast.BadDecl{}
-}
-
-func newBadStmt() *ast.BadStmt {
-	return &ast.BadStmt{}
 }
 
 /* == error ================================================================= */
